@@ -45,6 +45,25 @@ Describe 'ParamsTabExpansion Tests' {
         }
     }
 
+    Context 'Clone Parameters TabExpansion Tests' {
+        It 'Tab completes all long clone parameters' {
+            $result = & $module GitTabExpansionInternal 'git clone --'
+            $result -contains '--filter=' | Should -Be $true
+            $result -contains '--sparse' | Should -Be $true
+        }
+        It 'Tab completes clone parameters values' {
+            $result = & $module GitTabExpansionInternal 'git clone --filter='
+            $result -contains '--filter=blob:none' | Should -Be $true
+            $result -contains '--filter=blob:limit=' |im Should -Be $true
+            $result -contains '--filter=tree:' | Should -Be $true
+            $result -contains '--filter=object:type=tag' | Should -Be $true
+            $result -contains '--filter=object:type=commit' | Should -Be $true
+            $result -contains '--filter=object:type=tree' | Should -Be $true
+            $result -contains '--filter=object:type=blob' | Should -Be $true
+            $result -contains '--filter=sparse:oid=' | Should -Be $true
+        }
+    }
+
     Context 'Pretty/Format TabCompletion Tests - No Custom Formats' {
         It 'Tab completes default formats for log --pretty' {
             $result = & $module GitTabExpansionInternal 'git log --pretty='
@@ -148,6 +167,28 @@ Describe 'ParamsTabExpansion Tests' {
             $result -contains '--format=raw' | Should -Be $true
             $result -contains '--format=birdseye' | Should -Be $true
             $result -contains '--format=test2' | Should -Be $true
+        }
+    }
+
+    Context 'Sparse-Checkout Parameters TabExpansion Tests' {
+        It 'Tab completes all long sparse-checkout set parameters' {
+            $result = & $module GitTabExpansionInternal 'git sparse-checkout set --'
+            $result -contains '--cone' | Should -Be $true
+            $result -contains '--no-cone' | Should -Be $true
+            $result -contains '--sparse-index' | Should -Be $true
+            $result -contains '--no-sparse-index' | Should -Be $true
+            $result -contains '--stdin' | Should -Be $true
+        }
+        It 'Tab completes all long sparse-checkout reapply parameters' {
+            $result = & $module GitTabExpansionInternal 'git sparse-index reapply --'
+            $result -contains '--cone' | Should -Be $true
+            $result -contains '--no-cone' | Should -Be $true
+            $result -contains '--sparse-index' | Should -Be $true
+            $result -contains '--no-sparse-index' | Should -Be $true
+        }
+        It 'Tab completes all long sparse-checkout add parameters' {
+            $result = & $module GitTabExpansionInternal 'git sparse-checkout add --'
+            $result -contains '--stdin' | Should -Be $true
         }
     }
 }

@@ -32,6 +32,7 @@ $shortGitParams = @{
     revert = 'e m n S s X'
     rm = 'f n r q'
     shortlog = 'n s e w'
+    'sparse-checkout' = ''
     stash = 'p k u a q'
     status = 's b u z'
     submodule = 'q b f n N'
@@ -49,7 +50,7 @@ $longGitParams = @{
     checkout = 'quiet force ours theirs track no-track detach orphan ignore-skip-worktree-bits merge conflict= patch'
     'cherry-pick' = 'edit mainline no-commit signoff gpg-sign ff allow-empty allow-empty-message keep-redundant-commits strategy= strategy-option= continue quit abort'
     clean = 'force interactive dry-run quiet exclude='
-    clone = 'local no-hardlinks shared reference quiet verbose progress no-checkout bare mirror origin branch upload-pack template= config depth single-branch no-single-branch recursive recurse-submodules separate-git-dir='
+    clone = 'local no-hardlinks shared reference quiet verbose progress no-checkout bare mirror origin branch upload-pack template= config depth single-branch no-single-branch recursive recurse-submodules separate-git-dir= filter= sparse'
     commit = 'all patch reuse-message reedit-message fixup squash reset-author short branch porcelain long null file author date message template signoff no-verify allow-empty allow-empty-message cleanup= edit no-edit amend no-post-rewrite include only untracked-files verbose quiet dry-run status no-status gpg-sign no-gpg-sign'
     config = 'replace-all add get get-all get-regexp get-urlmatch global system local file blob remove-section rename-section unset unset-all list bool int bool-or-int path null get-colorbool get-color edit includes no-includes'
     describe = 'dirty all tags contains abbrev candidates= exact-match debug long match always first-parent'
@@ -77,6 +78,7 @@ $longGitParams = @{
     rm = 'force dry-run cached ignore-unmatch quiet'
     shortlog = 'numbered summary email format='
     show = 'pretty= format= abbrev-commit no-abbrev-commit oneline encoding= notes no-notes show-notes no-standard-notes standard-notes show-signature'
+    'sparse-checkout' = ''
     stash = 'patch no-keep-index keep-index include-untracked all quiet index'
     status = 'short branch porcelain long untracked-files ignore-submodules ignored column no-column'
     submodule = 'quiet branch force cached files summary-limit remote no-fetch checkout merge rebase init name reference recursive depth'
@@ -109,6 +111,14 @@ $longVstsParams = @{
     update = " $longVstsGlobal"
 }
 
+$filterSpecs = 'blob:none blob:limit= tree: sparse:oid= object:type=tag object:type=commit object:type=tree object:type=blob'
+
+$longSparseCheckoutParams = @{
+    add = "stdin"
+    set = "cone no-cone sparse-index no-sparse-index stdin"
+    reapply = "cone no-cone sparse-index no-sparse-index"
+}
+
 # Variable is used in GitTabExpansion.ps1
 $gitParamValues = @{
     blame = @{
@@ -123,6 +133,9 @@ $gitParamValues = @{
     }
     'cherry-pick' = @{
         strategy = 'resolve recursive octopus ours subtree'
+    }
+    clone = @{
+        'filter' = $filterSpecs
     }
     commit = @{
         'cleanup' = 'strip whitespace verbatim scissors default'

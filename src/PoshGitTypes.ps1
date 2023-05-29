@@ -257,6 +257,9 @@ class PoshGitPromptSettings {
     [PoshGitTextSpan]$BranchBehindStatusSymbol         = [PoshGitTextSpan]::new([char]0x2193, [ConsoleColor]::Red)      # ↓ Down arrow
     [PoshGitTextSpan]$BranchBehindAndAheadStatusSymbol = [PoshGitTextSpan]::new([char]0x2195, [ConsoleColor]::Yellow)   # ↕ Up & Down arrow
 
+    [PoshGitTextSpan]$UpstreamBranch  = [PoshGitTextSpan]::new('', [ConsoleColor]::Blue)
+    [PoshGitTextSpan]$BranchExInfo    = [PoshGitTextSpan]::new('', [ConsoleColor]::Magenta)
+
     [BranchBehindAndAheadDisplayOptions]$BranchBehindAndAheadDisplay = [BranchBehindAndAheadDisplayOptions]::Full
 
     [string]$FileAddedText       = '+'
@@ -293,6 +296,10 @@ class PoshGitPromptSettings {
 
     [int]$BranchNameLimit = 0
     [string]$TruncatedBranchSuffix = '...'
+
+    [string]$DetachedHeadPrefix = ''   # show nothing by default
+    [string]$DefaultAdminSymbol = ''   # show nothing by default
+    [string]$DefaultBranchSymbol = ''  # show nothing by default
 
     [bool]$Debug = $false
 }

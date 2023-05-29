@@ -18,7 +18,7 @@ if (Test-Path Env:\POSHGIT_ENABLE_STRICTMODE) {
 . $PSScriptRoot\GitTabExpansion.ps1
 . $PSScriptRoot\TortoiseGit.ps1
 
-$IsAdmin = Test-Administrator
+$global:IsAdmin = Test-Administrator
 
 # Get the default prompt definition.
 $initialSessionState = [System.Management.Automation.Runspaces.Runspace]::DefaultRunspace.InitialSessionState
@@ -40,7 +40,7 @@ $GitPromptScriptBlock = {
 
     $global:GitPromptValues.DollarQuestion = $origDollarQuestion
     $global:GitPromptValues.LastExitCode = $origLastExitCode
-    $global:GitPromptValues.IsAdmin = $IsAdmin
+    $global:GitPromptValues.IsAdmin = $global:IsAdmin
 
     $settings = $global:GitPromptSettings
 
@@ -98,7 +98,7 @@ $GitPromptScriptBlock = {
     }
 
     # This has to be *after* the call to Write-VcsStatus, which populates $global:GitStatus
-    Set-WindowTitle $global:GitStatus $IsAdmin
+    Set-WindowTitle $global:GitStatus $global:IsAdmin
 
     # If prompt timing enabled, write elapsed milliseconds
     if ($settings.DefaultPromptEnableTiming) {

@@ -122,7 +122,7 @@ function Get-GitBranch($branch = $null, $gitDir = $(Get-GitDirectory), [switch]$
                 $b `
                 $branch `
                 { dbg 'Trying symbolic-ref' $sw; git --no-optional-locks symbolic-ref HEAD -q 2>$null } `
-                { '({0})' -f (Invoke-NullCoalescing `
+                { "{0}" -f (Invoke-NullCoalescing `
                     {
                         dbg 'Trying describe' $sw
                         switch ($Global:GitPromptSettings.DescribeStyle) {
@@ -148,8 +148,8 @@ function Get-GitBranch($branch = $null, $gitDir = $(Get-GitDirectory), [switch]$
                         if ($ref -match 'ref: (?<ref>.+)') {
                             return $Matches['ref']
                         }
-                        elseif ($ref -and $ref.Length -ge 7) {
-                            return $ref.Substring(0, 7) + '...'
+                        elseif ($ref -and $ref.Length -ge 10) {
+                            return $ref.Substring(0, 10)
                         }
                         else {
                             return 'unknown'
@@ -268,6 +268,13 @@ function Get-GitStatus {
         $filesDeleted = New-Object System.Collections.Generic.List[string]
         $filesUnmerged = New-Object System.Collections.Generic.List[string]
         $stashCount = 0
+        $upstreamDiff = $false
+        $detachedHead = $false
+        $currenBranchExisted = $true
+        $branchExInfo = $null
+
+        # Flag to tell whether there is commit (emtpy repo, such as git init)
+        $NoCommit = $false
 
         $fileStatusEnabled = $Force -or $settings.EnableFileStatus
         # Optimization: short-circuit to avoid InDotGitOrBareRepoDir and InDisabledRepository if !$fileStatusEnabled
@@ -328,7 +335,7 @@ function Get-GitStatus {
                     "All" { $untrackedFilesOption = "-uall" }
                     default { $untrackedFilesOption = "-unormal" }
                 }
-                $status = Invoke-Utf8ConsoleCommand { git --no-optional-locks '-c' core.quotepath=false '-c' color.status=false status $untrackedFilesOption --short --branch 2>$null }
+                $status = Invoke-Utf8ConsoleCommand { git --no-optional-locks '-c' core.quotepath=false '-c' color.status=false status $untrackedFilesOption --short --branch --ahead-behind 2>$null }
                 if ($settings.EnableStashStatus) {
                     dbg 'Getting stash count' $sw
                     $stashCount = $null | git --no-optional-locks stash list 2>$null | measure-object | Select-Object -expand Count
@@ -366,14 +373,48 @@ function Get-GitStatus {
                         continue
                     }
 
-                    '^## (?<branch>\S+?)(?:\.\.\.(?<upstream>\S+))?(?: \[(?:ahead (?<ahead>\d+))?(?:, )?(?:behind (?<behind>\d+))?(?<gone>gone)?\])?$' {
+                    '^## (?<branch>\S+?)(?:\.\.\.(?<upstream>\S+))?(?: \[(?:ahead (?<ahead>\d+))?(?:, )?(?:behind (?<behind>\d+))?(?<gone>gone)?(?<different>different)?\])?$' {
                         if ($sw) { dbg "Status: $_" $sw }
 
                         $branch = $matches['branch']
                         $upstream = $matches['upstream']
-                        $aheadBy = [int]$matches['ahead']
+                        $aheadBy  = [int]$matches['ahead']
                         $behindBy = [int]$matches['behind']
                         $gone = [string]$matches['gone'] -eq 'gone'
+
+                        if([string]$matches['different'] -eq 'different') {
+                            $aheadBehind = Invoke-Utf8ConsoleCommand { git --no-optional-locks '-c' core.quotepath=false '-c' color.status=false status --ahead-behind 2>$null }
+                            dbg 'Parsing status --ahead-behind' $sw
+                            switch -regex ($aheadBehind) {
+                                '^.* is behind .* by (?<behind>\d+) commit.*$' {
+                                    if ($sw) { dbg "status is behind: $_" $sw }
+
+                                    $behindBy = [int]$matches['behind']
+                                    break
+                                }
+
+                                '^.* is ahead of .* by (?<ahead>\d+) commit.*$' {
+                                    if ($sw) { dbg "status is ahead: $_" $sw }
+
+                                    $aheadBy  = [int]$matches['ahead']
+                                    break
+                                }
+
+                                '^.* have (?<ahead>\d+) and (?<behind>\d+) different commits each.*$' {
+                                    if ($sw) { dbg "status is ahead+behind: $_" $sw }
+
+                                    $aheadBy  = [int]$matches['ahead']
+                                    $behindBy = [int]$matches['behind']
+                                    break
+                                }
+
+                                default {
+                                    if ($sw) { dbg "Status --ahead-behind no find: $_" $sw }
+                                    continue
+                                }
+                            }
+                        }
+
                         continue
                     }
 
@@ -384,12 +425,79 @@ function Get-GitStatus {
                         continue
                     }
 
+                    '^## No commits yet on .*$' {
+                        if ($sw) { dbg "Status: $_" $sw }
+
+                        # Repo is empty
+                        $NoCommit = $True
+                        continue
+                    }
+
                     default { if ($sw) { dbg "Status: $_" $sw } }
                 }
             }
         }
 
+        dbg 'before Get-GitBranch' $sw
+        dbg $branch $sw
+
+        if(($Null -eq $branch) -or ($branch -eq "")) {
+            $detachedHead = $True
+            $currenBranchExisted = $false
+        }
+
         $branch = Get-GitBranch -Branch $branch -GitDir $GitDir -IsDotGitOrBare:$isDotGitOrBare -sw $sw
+
+        # Check upstream branch if upstream branch is not same same as current branch
+        if($branch) {
+            dbg 'have branch' $sw
+            dbg ('branch: ' + $branch) $sw
+
+            if($upstream) {
+                dbg 'have upstream' $sw
+                dbg ('upstream: ' + $upstream) $sw
+            }
+
+            # Get branch and any behind string from branch name, like |MERGING, |REBASE-i
+            if($branch -match '^(?<branch>[^\|]+)(?<exinfo>(?:\|.*)?)$') {
+                # Should always match and get branch name here!
+                $branch = [string]$matches['branch']
+                $branchExInfo = [string]$matches['exinfo']
+
+                dbg ('real branch: ' + $branch) $sw
+                dbg ('branch exifo: ' + $branchExInfo) $sw
+            }
+
+            if($upstream -and ($upstream -notmatch ( '^[^/]+/' + $branch + '$'))) {
+                # upstream branch is not same same as current branch
+                dbg 'branch and upstream is diff' $sw
+                $upstreamDiff = $True
+            }
+
+            switch -regex ($branch) {
+                '^GIT_DIR!$' {
+                    $detachedHead = $false
+                    break
+                }
+
+                '^BARE:.*$' {
+                    $detachedHead = $false
+                    break
+                }
+
+                default {
+                    break;
+                }
+            }
+        }
+
+        if($NoCommit) {
+            # Repo is empty, it is not detached head case
+            $detachedHead = $false
+        }
+
+        dbg 'after Get-GitBranch and final branch' $sw
+        dbg $branch $sw
 
         dbg 'Building status object' $sw
 
@@ -424,6 +532,10 @@ function Get-GitStatus {
             Working      = $working
             HasUntracked = [bool]$filesAdded
             StashCount   = $stashCount
+            UpstreamDiff = $upstreamDiff
+            DetachedHead = $detachedHead
+            CurrenBranchExisted = $currenBranchExisted
+            BranchExInfo = $branchExInfo
         }
 
         dbg 'Finished' $sw
